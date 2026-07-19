@@ -1,0 +1,14 @@
+name: Rebase Upstream
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    permissions:
+      contents: write
+    uses: McCio/quartz/.github/workflows/_rebase-upstream.yml@v5
+    with:
+      upstream_repo: quartz-community/plugin-template
+      upstream_branch: main
+      rebuild_dist: true

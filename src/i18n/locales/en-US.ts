@@ -1,7 +1,2 @@
-export default {
-  components: {
-    example: {
-      title: "Example",
-    },
-  },
-};
+export const translations = {};
+export default translations;

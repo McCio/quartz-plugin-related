@@ -1,103 +1,59 @@
-import type { PluggableList, Plugin } from "unified";
-import type { Root as MdastRoot } from "mdast";
-import type { Root as HastRoot, Element } from "hast";
+import type { PluggableList } from "unified";
 import type { VFile } from "vfile";
-import remarkGfm from "remark-gfm";
-import rehypeSlug from "rehype-slug";
-import { findAndReplace } from "mdast-util-find-and-replace";
-import { visit } from "unist-util-visit";
-import type { QuartzTransformerPlugin, BuildCtx } from "@quartz-community/types";
-import type { ExampleTransformerOptions } from "./types";
+import type { FullSlug, QuartzTransformerPlugin } from "@quartz-community/types";
+import { simplifySlug } from "@quartz-community/utils";
+import type { RelatedOptions } from "./types";
 
-const defaultOptions: ExampleTransformerOptions = {
-  highlightToken: "==",
-  headingClass: "example-plugin-heading",
-  enableGfm: true,
-  addHeadingSlugs: true,
-};
+// Strip [[...]] wikilink syntax and return the inner path (before any | alias separator)
+function stripWikilink(value: string): string {
+  const match = value.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return match ? match[1]!.trim() : value.trim();
+}
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export const RelatedTransformer: QuartzTransformerPlugin<RelatedOptions> = (opts) => {
+  const keys = opts?.keys ?? ["related"];
 
-const remarkHighlightToken = (token: string): Plugin<[], MdastRoot> => {
-  const escapedToken = escapeRegExp(token);
-  const pattern = new RegExp(`${escapedToken}([^\n]+?)${escapedToken}`, "g");
-  return () => (tree: MdastRoot, _file: VFile) => {
-    findAndReplace(tree, [
-      [
-        pattern,
-        (_match: string, value: string) => ({
-          type: "strong",
-          children: [{ type: "text", value }],
-        }),
-      ],
-    ]);
-  };
-};
-
-const rehypeHeadingClass = (className: string): Plugin<[], HastRoot> => {
-  return () => (tree: HastRoot, _file: VFile) => {
-    visit(tree, "element", (node: Element) => {
-      if (!/^h[1-6]$/.test(node.tagName)) {
-        return;
-      }
-
-      const existing = node.properties?.className;
-      const classes: string[] = Array.isArray(existing)
-        ? existing.filter((value): value is string => typeof value === "string")
-        : typeof existing === "string"
-          ? [existing]
-          : [];
-      node.properties = {
-        ...node.properties,
-        className: [...classes, className],
-      };
-    });
-  };
-};
-
-/**
- * Example transformer showing remark/rehype usage and resource injection.
- */
-export const ExampleTransformer: QuartzTransformerPlugin<Partial<ExampleTransformerOptions>> = (
-  userOptions?: Partial<ExampleTransformerOptions>,
-) => {
-  const options = { ...defaultOptions, ...userOptions };
   return {
-    name: "ExampleTransformer",
-    textTransform(_ctx: BuildCtx, src: string) {
-      return src.endsWith("\n") ? src : `${src}\n`;
-    },
+    name: "RelatedTransformer",
     markdownPlugins(): PluggableList {
-      const plugins: PluggableList = [remarkHighlightToken(options.highlightToken)];
-      if (options.enableGfm) {
-        plugins.unshift(remarkGfm);
-      }
-      return plugins;
+      return [
+        () => (_tree, file: VFile) => {
+          const fm = (file.data as Record<string, unknown>).frontmatter as
+            | Record<string, unknown>
+            | undefined;
+          if (!fm) return;
+
+          const related: string[] = [];
+          for (const key of keys) {
+            const val = fm[key];
+            if (!val) continue;
+            const items = Array.isArray(val) ? val : [val];
+            for (const item of items) {
+              if (typeof item === "string" && item.trim()) {
+                related.push(simplifySlug(stripWikilink(item) as FullSlug));
+              }
+            }
+          }
+
+          if (related.length > 0) {
+            (file.data as Record<string, unknown>).related = related;
+          }
+        },
+      ];
     },
     htmlPlugins(): PluggableList {
-      const plugins: PluggableList = [rehypeHeadingClass(options.headingClass)];
-      if (options.addHeadingSlugs) {
-        plugins.unshift(rehypeSlug);
-      }
-      return plugins;
-    },
-    externalResources() {
-      return {
-        css: [
-          {
-            content: `.${options.headingClass} { letter-spacing: 0.02em; }`,
-            inline: true,
-          },
-        ],
-        js: [
-          {
-            contentType: "inline",
-            loadTime: "afterDOMReady",
-            script: "document.documentElement.dataset.exampleTransformer = 'true'",
-          },
-        ],
-        additionalHead: [],
-      };
+      return [
+        () => (_tree, file: VFile) => {
+          const data = file.data as Record<string, unknown>;
+          const related = data.related as string[] | undefined;
+          if (!related || related.length === 0) return;
+          // Append related slugs to the outgoing links array so graph and backlinks pick them up
+          const existing = (data.links as string[] | undefined) ?? [];
+          const merged = Array.from(new Set([...existing, ...related]));
+          data.links = merged;
+        },
+      ];
     },
   };
 };

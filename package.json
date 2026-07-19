@@ -1,14 +1,14 @@
 {
-  "name": "@quartz-community/plugin-template",
+  "name": "@mccio/quartz-plugin-related",
   "version": "0.1.0",
-  "description": "Template repository for Quartz community plugins.",
+  "description": "Quartz plugin: related links from frontmatter",
   "type": "module",
   "license": "MIT",
   "author": "Quartz Community",
   "homepage": "https://quartz.jzhao.xyz",
   "repository": {
     "type": "git",
-    "url": "https://github.com/quartz-community/plugin-template"
+    "url": "https://github.com/McCio/quartz-plugin-related"
   },
   "keywords": [
     "quartz",
@@ -94,30 +94,32 @@
     "vitest": "^2.1.9"
   },
   "quartz": {
-    "name": "plugin-template",
-    "displayName": "Plugin Template",
+    "name": "related",
+    "displayName": "Related Links",
     "category": "transformer",
     "version": "1.0.0",
     "quartzVersion": ">=5.0.0",
     "dependencies": [],
-    "defaultOrder": 50,
-    "defaultEnabled": true,
-    "defaultOptions": {},
+    "defaultOrder": 65,
+    "defaultEnabled": false,
+    "defaultOptions": {
+      "keys": [
+        "related"
+      ]
+    },
     "optionSchema": {
-      "highlightToken": {
-        "type": "enum",
-        "values": [
-          "==",
-          "**",
-          "~~"
-        ]
+      "keys": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       }
     },
     "components": {
-      "ExampleComponent": {
-        "displayName": "Example Component",
-        "defaultPosition": "right",
-        "defaultPriority": 50
+      "Related": {
+        "displayName": "Related",
+        "defaultPosition": "afterBody",
+        "defaultPriority": 60
       }
     }
   },

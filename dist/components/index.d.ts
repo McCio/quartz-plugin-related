@@ -1,10 +1,8 @@
-import { QuartzComponent } from '@quartz-community/types';
+import { QuartzComponentConstructor } from '@quartz-community/types';
 
-interface ExampleComponentOptions {
-    prefix?: string;
-    suffix?: string;
-    className?: string;
+interface RelatedComponentOptions {
+    title?: string;
 }
-declare const _default: (opts?: ExampleComponentOptions) => QuartzComponent;
+declare const Related: QuartzComponentConstructor<RelatedComponentOptions>;
 
-export { _default as ExampleComponent, type ExampleComponentOptions };
+export { Related };
